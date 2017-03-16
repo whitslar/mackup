@@ -218,13 +218,14 @@ class ApplicationProfile(object):
         """
         # For each file used by the application
         for filename in self.files:
-            (home_filepath, mackup_filepath) = self.getFilepaths(filename)
+            (home_filepath, mackup_filepath, mackup_original_state_path) = self.getFilepaths(filename)
 
             # If the mackup file exists
             if (os.path.isfile(mackup_filepath) or
                     os.path.isdir(mackup_filepath)):
-                # Check if there is a corresponding file in the home folder
-                if os.path.exists(home_filepath):
+                # Check if there is a corresponding file in the home folder and that it is a symlink
+                if (os.path.exists(home_filepath) and
+                        os.path.islink(home_filepath)):
                     if self.verbose:
                         print("Reverting {}\n  at {} ..."
                               .format(mackup_filepath, home_filepath))
