@@ -34,6 +34,8 @@ backend with a .mackup.cfg file.
 See https://github.com/lra/mackup/tree/master/doc for more information.
 
 """
+import os
+
 from docopt import docopt
 from .appsdb import ApplicationsDatabase
 from .application import ApplicationProfile
@@ -79,6 +81,7 @@ def main():
     if args['backup']:
         # Check the env where the command is being run
         mckp.check_for_usable_backup_env()
+        mckp.ensure_mackup_original_state_folder_exists()
 
         # Backup each application
         for app_name in sorted(mckp.get_apps_to_backup()):
@@ -92,6 +95,7 @@ def main():
     elif args['restore']:
         # Check the env where the command is being run
         mckp.check_for_usable_restore_env()
+        mckp.ensure_mackup_original_state_folder_exists()
 
         # Restore the Mackup config before any other config, as we might need
         # it to know about custom settings
@@ -131,6 +135,14 @@ def main():
                          " to their original place, in your home folder.\n"
                          "Are you sure ?")):
 
+            revert_to_original_state = False
+            if (os.path.exists(mckp.mackup_original_state_folder) and
+                utils.confirm("\nWould you like to revert your files back to the state "
+                              "they were in before installing Mackup?\n"
+                              "(Choosing no will keep them in their current state, "
+                              "except they will no longer be symlinked)")):
+                    revert_to_original_state = True
+
             # Uninstall the apps except Mackup, which we'll uninstall last, to
             # keep the settings as long as possible
             app_names = mckp.get_apps_to_backup()
@@ -142,6 +154,7 @@ def main():
                                          dry_run,
                                          verbose)
                 printAppHeader(app_name)
+                app.revert_to_original_state = revert_to_original_state
                 app.uninstall()
 
             # Restore the Mackup config before any other config, as we might
@@ -150,7 +163,11 @@ def main():
                                             app_db.get_files(MACKUP_APP_NAME),
                                             dry_run,
                                             verbose)
+            mackup_app.revert_to_original_state = revert_to_original_state
             mackup_app.uninstall()
+
+            # Delete the original state folder
+            mckp.clean_original_state_folder()
 
             # Delete the Mackup folder in Dropbox
             # Don't delete this as there might be other Macs that aren't

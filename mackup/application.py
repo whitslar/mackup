@@ -29,6 +29,7 @@ class ApplicationProfile(object):
         self.files = list(files)
         self.dry_run = dry_run
         self.verbose = verbose
+        self.revert_to_original_state = False
 
     def getFilepaths(self, filename):
         """
@@ -38,10 +39,11 @@ class ApplicationProfile(object):
             filepath (str)
 
         Returns:
-            home_filepath, mackup_filepath (str, str)
+            home_filepath, mackup_filepath, mackup_original_state_path (str, str, str)
         """
         return (os.path.join(os.environ['HOME'], filename),
-                os.path.join(self.mackup.mackup_folder, filename))
+                os.path.join(self.mackup.mackup_folder, filename),
+                os.path.join(self.mackup.mackup_original_state_folder, filename))
 
     def backup(self):
         """
@@ -62,7 +64,7 @@ class ApplicationProfile(object):
         """
         # For each file used by the application
         for filename in self.files:
-            (home_filepath, mackup_filepath) = self.getFilepaths(filename)
+            (home_filepath, mackup_filepath, mackup_original_state_path) = self.getFilepaths(filename)
 
             # If the file exists and is not already a link pointing to Mackup
             if ((os.path.isfile(home_filepath) or
@@ -105,6 +107,8 @@ class ApplicationProfile(object):
                         utils.delete(mackup_filepath)
                         # Copy the file
                         utils.copy(home_filepath, mackup_filepath)
+                        # Copy the file to mackup original state backup
+                        utils.copy(home_filepath, mackup_original_state_path)
                         # Delete the file in the home
                         utils.delete(home_filepath)
                         # Link the backuped file to its original place
@@ -112,6 +116,8 @@ class ApplicationProfile(object):
                 else:
                     # Copy the file
                     utils.copy(home_filepath, mackup_filepath)
+                    # Copy the file to mackup original state backup
+                    utils.copy(home_filepath, mackup_original_state_path)
                     # Delete the file in the home
                     utils.delete(home_filepath)
                     # Link the backuped file to its original place
@@ -145,7 +151,7 @@ class ApplicationProfile(object):
         """
         # For each file used by the application
         for filename in self.files:
-            (home_filepath, mackup_filepath) = self.getFilepaths(filename)
+            (home_filepath, mackup_filepath, mackup_original_state_path) = self.getFilepaths(filename)
 
             # If the file exists and is not already pointing to the mackup file
             # and the folder makes sense on the current platform (Don't sync
@@ -185,6 +191,7 @@ class ApplicationProfile(object):
                                      " home.\nDo you want to replace it with"
                                      " your backup ?"
                                      .format(file_type, filename)):
+                        utils.copy(home_filepath, mackup_original_state_path)
                         utils.delete(home_filepath)
                         utils.link(mackup_filepath, home_filepath)
                 else:
@@ -239,8 +246,15 @@ class ApplicationProfile(object):
                     # one there
                     utils.delete(home_filepath)
 
-                    # Copy the Dropbox file to the home folder
-                    utils.copy(mackup_filepath, home_filepath)
+                    # If a corresponding file exists in the mackup original state backup
+                    # copy it to the home folder, otherwise use the mackup file
+                    if (self.revert_to_original_state and
+                            (os.path.isfile(mackup_original_state_path) or
+                                os.path.isdir(mackup_original_state_path))):
+                        utils.copy(mackup_original_state_path, home_filepath)
+                    else:
+                        # Copy the Dropbox file to the home folder
+                        utils.copy(mackup_filepath, home_filepath)
             elif self.verbose:
                 print("Doing nothing, {} does not exist"
                       .format(mackup_filepath))

@@ -25,6 +25,7 @@ class Mackup(object):
 
         self.mackup_folder = self._config.fullpath
         self.temp_folder = tempfile.mkdtemp(prefix="mackup_tmp_")
+        self.mackup_original_state_folder = os.path.join(os.environ['HOME'], ".mackup_original_state")
 
     def check_for_usable_environment(self):
         """Check if the current env is usable and has everything's required."""
@@ -64,6 +65,10 @@ class Mackup(object):
         """Delete the temp folder and files created while running."""
         shutil.rmtree(self.temp_folder)
 
+    def clean_original_state_folder(self):
+        if os.path.exists(self.mackup_original_state_folder):
+            shutil.rmtree(self.mackup_original_state_folder)
+
     def create_mackup_home(self):
         """If the Mackup home folder does not exist, create it."""
         if not os.path.isdir(self.mackup_folder):
@@ -96,3 +101,7 @@ class Mackup(object):
             apps_to_backup.discard(app_name)
 
         return apps_to_backup
+
+    def ensure_mackup_original_state_folder_exists(self):
+        if not os.path.isdir(self.mackup_original_state_folder):
+            os.makedirs(self.mackup_original_state_folder)
